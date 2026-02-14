@@ -207,58 +207,58 @@ jobs:
       # ─────────────────────────────────────────────────────────
       
       - name: Capture Grafana Screenshots
-      env:
-        GRAFANA_TOKEN: ${{ secrets.GRAFANA_API_KEY }}
-        GRAFANA_RENDER_URL: ${{ secrets.GRAFANA_RENDER_URL }}
-      run: |
-        python3 << 'EOF'
-        import os
-        import requests
-        import time
-        
-        def capture_screenshot(url, token, test_type, output_path):
-            """Use Grafana image rendering API to capture full dashboard"""
-            
-            params = {
-                'orgId': '1',
-                'var-testType': test_type,
-                'from': 'now-1h',
-                'to': 'now',
-                'width': 1000,
-                'height': 1300,
-                'timeout': 60,
-                'theme': 'dark'
-            }
-            
-            headers = {
-                'Authorization': f'Bearer {token}',
-                'Accept': 'image/png'
-            }
-            
-            print(f"Capturing {test_type} dashboard screenshot...")
-            print(f"URL: {url}")
-            
-            response = requests.get(url, params=params, headers=headers, timeout=120)
-            
-            if response.status_code == 200:
-                with open(output_path, 'wb') as f:
-                    f.write(response.content)
-                print(f"✅ SUCCESS - Saved to {output_path} ({len(response.content)} bytes)")
-                return True
-            else:
-                print(f"❌ FAILED - HTTP {response.status_code}")
-                print(f"Response: {response.text[:500]}")
-                return False
-        
-        url = os.environ.get('GRAFANA_RENDER_URL')
-        token = os.environ.get('GRAFANA_TOKEN')
-        
-        for test_type in ['Smoke', 'Load', 'Stress', 'Spike']:
-            output_path = f'screenshots/{test_type.lower()}_dashboard.png'
-            capture_screenshot(url, token, test_type, output_path)
-            time.sleep(3)
-        
-        EOF
+        env:
+          GRAFANA_TOKEN: ${{ secrets.GRAFANA_API_KEY }}
+          GRAFANA_RENDER_URL: ${{ secrets.GRAFANA_RENDER_URL }}
+        run: |
+          python3 << 'EOF'
+          import os
+          import requests
+          import time
+          
+          def capture_screenshot(url, token, test_type, output_path):
+              """Use Grafana image rendering API to capture full dashboard"""
+              
+              params = {
+                  'orgId': '1',
+                  'var-testType': test_type,
+                  'from': 'now-1h',
+                  'to': 'now',
+                  'width': 1000,
+                  'height': 1300,
+                  'timeout': 60,
+                  'theme': 'dark'
+              }
+              
+              headers = {
+                  'Authorization': f'Bearer {token}',
+                  'Accept': 'image/png'
+              }
+              
+              print(f"Capturing {test_type} dashboard screenshot...")
+              print(f"URL: {url}")
+              
+              response = requests.get(url, params=params, headers=headers, timeout=120)
+              
+              if response.status_code == 200:
+                  with open(output_path, 'wb') as f:
+                      f.write(response.content)
+                  print(f"✅ SUCCESS - Saved to {output_path} ({len(response.content)} bytes)")
+                  return True
+              else:
+                  print(f"❌ FAILED - HTTP {response.status_code}")
+                  print(f"Response: {response.text[:500]}")
+                  return False
+          
+          url = os.environ.get('GRAFANA_RENDER_URL')
+          token = os.environ.get('GRAFANA_TOKEN')
+          
+          for test_type in ['Smoke', 'Load', 'Stress', 'Spike']:
+              output_path = f'screenshots/{test_type.lower()}_dashboard.png'
+              capture_screenshot(url, token, test_type, output_path)
+              time.sleep(3)
+          
+          EOF
       
       # ─────────────────────────────────────────────────────────
       # GENERATE EMAIL CONTENT
