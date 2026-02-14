@@ -1,0 +1,533 @@
+name: Weekly Performance Tests
+
+on:
+  schedule:
+    - cron: '0 17 * * 1'  # Every Monday at 9am PST
+  workflow_dispatch:  # Manual trigger for testing
+
+jobs:
+  performance-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Python dependencies
+        run: |
+          pip install playwright
+          playwright install chromium
+      
+      - name: Download JMeter
+        run: |
+          wget -q https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz
+          tar -xzf apache-jmeter-5.6.3.tgz
+          echo "$(pwd)/apache-jmeter-5.6.3/bin" >> $GITHUB_PATH
+      
+      - name: Create results directories
+        run: |
+          mkdir -p results logs screenshots
+      
+      # ─────────────────────────────────────────────────────────
+      # RUN TESTS
+      # ─────────────────────────────────────────────────────────
+      
+      - name: Run Smoke Test
+        env:
+          INFLUX_URL: ${{ secrets.INFLUX_URL }}
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+          INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
+          INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
+        run: |
+          jmeter -n -t performance_tests_final.jmx \
+            -JtestRunSelection='Smoke' \
+            -JINFLUX_URL="${INFLUX_URL}" \
+            -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
+            -JINFLUX_ORG="${INFLUX_ORG}" \
+            -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
+            -l results/smoke_results.jtl \
+            -j logs/smoke.log
+      
+      - name: Wait for Smoke data to settle
+        run: sleep 30
+      
+      - name: Run Load Test
+        env:
+          INFLUX_URL: ${{ secrets.INFLUX_URL }}
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+          INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
+          INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
+        run: |
+          jmeter -n -t performance_tests_final.jmx \
+            -JtestRunSelection='Load' \
+            -JINFLUX_URL="${INFLUX_URL}" \
+            -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
+            -JINFLUX_ORG="${INFLUX_ORG}" \
+            -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
+            -l results/load_results.jtl \
+            -j logs/load.log
+      
+      - name: Wait for Load data to settle
+        run: sleep 30
+      
+      - name: Run Stress Test
+        env:
+          INFLUX_URL: ${{ secrets.INFLUX_URL }}
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+          INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
+          INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
+        run: |
+          jmeter -n -t performance_tests_final.jmx \
+            -JtestRunSelection='Stress' \
+            -JINFLUX_URL="${INFLUX_URL}" \
+            -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
+            -JINFLUX_ORG="${INFLUX_ORG}" \
+            -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
+            -l results/stress_results.jtl \
+            -j logs/stress.log
+      
+      - name: Wait for Stress data to settle
+        run: sleep 30
+      
+      - name: Run Spike Test
+        env:
+          INFLUX_URL: ${{ secrets.INFLUX_URL }}
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+          INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
+          INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
+        run: |
+          jmeter -n -t performance_tests_final.jmx \
+            -JtestRunSelection='Spike' \
+            -JINFLUX_URL="${INFLUX_URL}" \
+            -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
+            -JINFLUX_ORG="${INFLUX_ORG}" \
+            -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
+            -l results/spike_results.jtl \
+            -j logs/spike.log
+      
+      - name: Wait for Spike data to settle
+        run: sleep 30
+      
+      # ─────────────────────────────────────────────────────────
+      # ANALYZE RESULTS
+      # ─────────────────────────────────────────────────────────
+      
+      - name: Parse test results and generate stats
+        id: parse_results
+        run: |
+          python3 << 'EOF'
+          import csv
+          import json
+          import os
+          from datetime import datetime
+          
+          def parse_jtl(filepath, test_type):
+              """Parse JMeter JTL file and extract statistics"""
+              try:
+                  with open(filepath, 'r') as f:
+                      reader = csv.DictReader(f)
+                      rows = list(reader)
+                  
+                  if not rows:
+                      return None
+                  
+                  # Calculate stats
+                  latencies = [int(row['elapsed']) for row in rows]
+                  success_count = sum(1 for row in rows if row['success'] == 'true')
+                  total_count = len(rows)
+                  
+                  latencies_sorted = sorted(latencies)
+                  p50_index = int(len(latencies_sorted) * 0.50)
+                  p90_index = int(len(latencies_sorted) * 0.90)
+                  p95_index = int(len(latencies_sorted) * 0.95)
+                  p99_index = int(len(latencies_sorted) * 0.99)
+                  
+                  stats = {
+                      'test_type': test_type,
+                      'total_requests': total_count,
+                      'success_rate': round((success_count / total_count) * 100, 2),
+                      'avg_response_time': round(sum(latencies) / len(latencies), 2),
+                      'min_response_time': min(latencies),
+                      'max_response_time': max(latencies),
+                      'p50_response_time': latencies_sorted[p50_index],
+                      'p90_response_time': latencies_sorted[p90_index],
+                      'p95_response_time': latencies_sorted[p95_index],
+                      'p99_response_time': latencies_sorted[p99_index],
+                      'error_count': total_count - success_count
+                  }
+                  
+                  return stats
+              except Exception as e:
+                  print(f"Error parsing {filepath}: {e}")
+                  return None
+          
+          # Parse all test results
+          results = {}
+          for test_type in ['smoke', 'load', 'stress', 'spike']:
+              filepath = f'results/{test_type}_results.jtl'
+              if os.path.exists(filepath):
+                  stats = parse_jtl(filepath, test_type.capitalize())
+                  if stats:
+                      results[test_type] = stats
+          
+          # Save to file for email step
+          with open('test_results_summary.json', 'w') as f:
+              json.dump(results, f, indent=2)
+          
+          # Also save as GitHub output for display in workflow
+          print(f"Results: {json.dumps(results, indent=2)}")
+          
+          # Set GitHub output variables for the email subject
+          smoke_success = results.get('smoke', {}).get('success_rate', 0)
+          load_success = results.get('load', {}).get('success_rate', 0)
+          stress_success = results.get('stress', {}).get('success_rate', 0)
+          spike_success = results.get('spike', {}).get('success_rate', 0)
+          
+          overall_success = (smoke_success + load_success + stress_success + spike_success) / 4
+          
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"overall_success={overall_success:.2f}\n")
+              f.write(f"smoke_success={smoke_success:.2f}\n")
+          
+          EOF
+      
+      # ─────────────────────────────────────────────────────────
+      # CAPTURE GRAFANA SCREENSHOTS
+      # ─────────────────────────────────────────────────────────
+      
+      - name: Capture Grafana Screenshots
+        env:
+          GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+        run: |
+          python3 << 'EOF'
+          import asyncio
+          from playwright.async_api import async_playwright
+          import os
+          
+          async def capture_screenshot(url, output_path, test_type):
+              """Capture screenshot of Grafana dashboard for specific test type"""
+              async with async_playwright() as p:
+                  browser = await p.chromium.launch()
+                  context = await browser.new_context(
+                      viewport={'width': 1920, 'height': 1080},
+                      device_scale_factor=2  # Retina display quality
+                  )
+                  
+                  # Add Grafana API key as Bearer token
+                  api_key = os.environ.get('GRAFANA_API_KEY')
+                  if api_key:
+                      await context.set_extra_http_headers({
+                          'Authorization': f'Bearer {api_key}'
+                      })
+                  
+                  page = await context.new_page()
+                  
+                  # Navigate to Grafana dashboard with test type filter
+                  dashboard_url = f"{url}&var-testType={test_type}"
+                  await page.goto(dashboard_url)
+                  
+                  # Wait for dashboard to fully load
+                  await page.wait_for_timeout(5000)
+                  
+                  # Wait for panels to render
+                  await page.wait_for_selector('.panel-content', timeout=10000)
+                  
+                  # Take screenshot
+                  await page.screenshot(path=output_path, full_page=True)
+                  
+                  await browser.close()
+          
+          async def main():
+              base_url = os.environ.get('GRAFANA_URL')
+              
+              # Capture screenshot for each test type
+              for test_type in ['Smoke', 'Load', 'Stress', 'Spike']:
+                  output_path = f'screenshots/{test_type.lower()}_dashboard.png'
+                  print(f"Capturing {test_type} dashboard screenshot...")
+                  await capture_screenshot(base_url, output_path, test_type)
+                  print(f"Saved to {output_path}")
+          
+          asyncio.run(main())
+          EOF
+      
+      # ─────────────────────────────────────────────────────────
+      # GENERATE EMAIL CONTENT
+      # ─────────────────────────────────────────────────────────
+      
+      - name: Generate HTML Email
+        run: |
+          python3 << 'EOF'
+          import json
+          from datetime import datetime
+          
+          # Load test results
+          with open('test_results_summary.json', 'r') as f:
+              results = json.load(f)
+          
+          # Generate HTML email
+          html = f"""
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <style>
+                  body {{
+                      font-family: Arial, sans-serif;
+                      line-height: 1.6;
+                      color: #333;
+                      max-width: 1200px;
+                      margin: 0 auto;
+                      padding: 20px;
+                  }}
+                  .header {{
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white;
+                      padding: 30px;
+                      border-radius: 10px;
+                      margin-bottom: 30px;
+                  }}
+                  .header h1 {{
+                      margin: 0;
+                      font-size: 28px;
+                  }}
+                  .header p {{
+                      margin: 10px 0 0 0;
+                      opacity: 0.9;
+                  }}
+                  .summary {{
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                      gap: 20px;
+                      margin-bottom: 30px;
+                  }}
+                  .summary-card {{
+                      background: #f8f9fa;
+                      padding: 20px;
+                      border-radius: 8px;
+                      border-left: 4px solid #667eea;
+                  }}
+                  .summary-card h3 {{
+                      margin: 0 0 10px 0;
+                      font-size: 14px;
+                      color: #666;
+                      text-transform: uppercase;
+                  }}
+                  .summary-card .value {{
+                      font-size: 32px;
+                      font-weight: bold;
+                      color: #333;
+                  }}
+                  .summary-card .subtitle {{
+                      font-size: 12px;
+                      color: #999;
+                      margin-top: 5px;
+                  }}
+                  .test-section {{
+                      background: white;
+                      border: 1px solid #e1e4e8;
+                      border-radius: 8px;
+                      padding: 25px;
+                      margin-bottom: 30px;
+                  }}
+                  .test-section h2 {{
+                      margin: 0 0 20px 0;
+                      color: #333;
+                      border-bottom: 2px solid #667eea;
+                      padding-bottom: 10px;
+                  }}
+                  .stats-grid {{
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                      gap: 15px;
+                      margin-bottom: 20px;
+                  }}
+                  .stat-item {{
+                      background: #f8f9fa;
+                      padding: 15px;
+                      border-radius: 6px;
+                  }}
+                  .stat-label {{
+                      font-size: 12px;
+                      color: #666;
+                      margin-bottom: 5px;
+                  }}
+                  .stat-value {{
+                      font-size: 20px;
+                      font-weight: bold;
+                      color: #333;
+                  }}
+                  .success {{ color: #28a745; }}
+                  .warning {{ color: #ffc107; }}
+                  .danger {{ color: #dc3545; }}
+                  .screenshot {{
+                      width: 100%;
+                      border-radius: 8px;
+                      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                      margin-top: 15px;
+                  }}
+                  .footer {{
+                      text-align: center;
+                      color: #666;
+                      font-size: 12px;
+                      margin-top: 40px;
+                      padding-top: 20px;
+                      border-top: 1px solid #e1e4e8;
+                  }}
+              </style>
+          </head>
+          <body>
+              <div class="header">
+                  <h1>🚀 Weekly Performance Test Report</h1>
+                  <p>Automated test run completed on {datetime.now().strftime('%B %d, %Y at %H:%M UTC')}</p>
+              </div>
+          """
+          
+          # Overall summary
+          overall_success = sum(r.get('success_rate', 0) for r in results.values()) / len(results) if results else 0
+          total_requests = sum(r.get('total_requests', 0) for r in results.values())
+          total_errors = sum(r.get('error_count', 0) for r in results.values())
+          
+          html += f"""
+              <div class="summary">
+                  <div class="summary-card">
+                      <h3>Overall Success Rate</h3>
+                      <div class="value {'success' if overall_success >= 95 else 'warning' if overall_success >= 90 else 'danger'}">{overall_success:.1f}%</div>
+                  </div>
+                  <div class="summary-card">
+                      <h3>Total Requests</h3>
+                      <div class="value">{total_requests:,}</div>
+                  </div>
+                  <div class="summary-card">
+                      <h3>Total Errors</h3>
+                      <div class="value {'danger' if total_errors > 0 else 'success'}">{total_errors}</div>
+                  </div>
+              </div>
+          """
+          
+          # Individual test sections
+          test_emojis = {'smoke': '🔍', 'load': '📊', 'stress': '💪', 'spike': '⚡'}
+          
+          for test_key, stats in results.items():
+              test_name = stats['test_type']
+              emoji = test_emojis.get(test_key, '📈')
+              success_class = 'success' if stats['success_rate'] >= 95 else 'warning' if stats['success_rate'] >= 90 else 'danger'
+              
+              html += f"""
+              <div class="test-section">
+                  <h2>{emoji} {test_name} Test Results</h2>
+                  
+                  <div class="stats-grid">
+                      <div class="stat-item">
+                          <div class="stat-label">Success Rate</div>
+                          <div class="stat-value {success_class}">{stats['success_rate']}%</div>
+                      </div>
+                      <div class="stat-item">
+                          <div class="stat-label">Total Requests</div>
+                          <div class="stat-value">{stats['total_requests']:,}</div>
+                      </div>
+                      <div class="stat-item">
+                          <div class="stat-label">Errors</div>
+                          <div class="stat-value {'danger' if stats['error_count'] > 0 else 'success'}">{stats['error_count']}</div>
+                      </div>
+                      <div class="stat-item">
+                          <div class="stat-label">Avg Response</div>
+                          <div class="stat-value">{stats['avg_response_time']:.0f}ms</div>
+                      </div>
+                      <div class="stat-item">
+                          <div class="stat-label">p50</div>
+                          <div class="stat-value">{stats['p50_response_time']}ms</div>
+                      </div>
+                      <div class="stat-item">
+                          <div class="stat-label">p90</div>
+                          <div class="stat-value">{stats['p90_response_time']}ms</div>
+                      </div>
+                      <div class="stat-item">
+                          <div class="stat-label">p95</div>
+                          <div class="stat-value">{stats['p95_response_time']}ms</div>
+                      </div>
+                      <div class="stat-item">
+                          <div class="stat-label">p99</div>
+                          <div class="stat-value">{stats['p99_response_time']}ms</div>
+                      </div>
+                      <div class="stat-item">
+                          <div class="stat-label">Min</div>
+                          <div class="stat-value">{stats['min_response_time']}ms</div>
+                      </div>
+                      <div class="stat-item">
+                          <div class="stat-label">Max</div>
+                          <div class="stat-value">{stats['max_response_time']}ms</div>
+                      </div>
+                  </div>
+                  
+                  <h3 style="margin-top: 25px; margin-bottom: 10px;">📊 Grafana Dashboard</h3>
+                  <img src="cid:{test_key}_dashboard" alt="{test_name} Dashboard" class="screenshot">
+              </div>
+              """
+          
+          html += """
+              <div class="footer">
+                  <p>This is an automated report generated by GitHub Actions</p>
+                  <p>View detailed metrics in your Grafana dashboard</p>
+              </div>
+          </body>
+          </html>
+          """
+          
+          # Save HTML email
+          with open('email_body.html', 'w') as f:
+              f.write(html)
+          
+          print("Email HTML generated successfully")
+          EOF
+      
+      # ─────────────────────────────────────────────────────────
+      # SEND EMAIL
+      # ─────────────────────────────────────────────────────────
+      
+      - name: Send Email with Screenshots
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Performance Test Report - ${{ steps.parse_results.outputs.overall_success }}% Success Rate"
+          to: ${{ secrets.EMAIL_TO }}
+          from: Performance Testing Bot <${{ secrets.EMAIL_USERNAME }}>
+          html_body: file://email_body.html
+          attachments: |
+            screenshots/smoke_dashboard.png
+            screenshots/load_dashboard.png
+            screenshots/stress_dashboard.png
+            screenshots/spike_dashboard.png
+          content_type: text/html
+          convert_markdown: false
+          priority: normal
+      
+      # ─────────────────────────────────────────────────────────
+      # UPLOAD ARTIFACTS (for debugging)
+      # ─────────────────────────────────────────────────────────
+      
+      - name: Upload test results and screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-results
+          path: |
+            results/
+            logs/
+            screenshots/
+            test_results_summary.json
+            email_body.html
+          retention-days: 30
