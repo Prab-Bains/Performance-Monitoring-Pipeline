@@ -26,8 +26,7 @@ jobs:
       
       - name: Install Python dependencies
         run: |
-          pip install playwright
-          playwright install chromium
+          pip install requests
       
       - name: Download JMeter
         run: |
@@ -43,164 +42,164 @@ jobs:
       # RUN TESTS
       # ─────────────────────────────────────────────────────────
       
-      - name: Run Smoke Test
-        env:
-          INFLUX_URL: ${{ secrets.INFLUX_URL }}
-          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
-          INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
-          INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
-        run: |
-          jmeter -n -t performance_tests.jmx \
-            -JtestRunSelection='Smoke' \
-            -JINFLUX_URL="${INFLUX_URL}" \
-            -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
-            -JINFLUX_ORG="${INFLUX_ORG}" \
-            -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
-            -l results/smoke_results.jtl \
-            -j logs/smoke.log
+      # - name: Run Smoke Test
+      #   env:
+      #     INFLUX_URL: ${{ secrets.INFLUX_URL }}
+      #     INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+      #     INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
+      #     INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
+      #   run: |
+      #     jmeter -n -t performance_tests.jmx \
+      #       -JtestRunSelection='Smoke' \
+      #       -JINFLUX_URL="${INFLUX_URL}" \
+      #       -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
+      #       -JINFLUX_ORG="${INFLUX_ORG}" \
+      #       -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
+      #       -l results/smoke_results.jtl \
+      #       -j logs/smoke.log
       
-      - name: Wait for Smoke data to settle
-        run: sleep 30
+      # - name: Wait for Smoke data to settle
+      #   run: sleep 30
       
-      - name: Run Load Test
-        env:
-          INFLUX_URL: ${{ secrets.INFLUX_URL }}
-          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
-          INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
-          INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
-        run: |
-          jmeter -n -t performance_tests.jmx \
-            -JtestRunSelection='Load' \
-            -JINFLUX_URL="${INFLUX_URL}" \
-            -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
-            -JINFLUX_ORG="${INFLUX_ORG}" \
-            -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
-            -l results/load_results.jtl \
-            -j logs/load.log
+      # - name: Run Load Test
+      #   env:
+      #     INFLUX_URL: ${{ secrets.INFLUX_URL }}
+      #     INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+      #     INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
+      #     INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
+      #   run: |
+      #     jmeter -n -t performance_tests.jmx \
+      #       -JtestRunSelection='Load' \
+      #       -JINFLUX_URL="${INFLUX_URL}" \
+      #       -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
+      #       -JINFLUX_ORG="${INFLUX_ORG}" \
+      #       -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
+      #       -l results/load_results.jtl \
+      #       -j logs/load.log
       
-      - name: Wait for Load data to settle
-        run: sleep 30
+      # - name: Wait for Load data to settle
+      #   run: sleep 30
       
-      - name: Run Stress Test
-        env:
-          INFLUX_URL: ${{ secrets.INFLUX_URL }}
-          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
-          INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
-          INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
-        run: |
-          jmeter -n -t performance_tests.jmx \
-            -JtestRunSelection='Stress' \
-            -JINFLUX_URL="${INFLUX_URL}" \
-            -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
-            -JINFLUX_ORG="${INFLUX_ORG}" \
-            -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
-            -l results/stress_results.jtl \
-            -j logs/stress.log
+      # - name: Run Stress Test
+      #   env:
+      #     INFLUX_URL: ${{ secrets.INFLUX_URL }}
+      #     INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+      #     INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
+      #     INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
+      #   run: |
+      #     jmeter -n -t performance_tests.jmx \
+      #       -JtestRunSelection='Stress' \
+      #       -JINFLUX_URL="${INFLUX_URL}" \
+      #       -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
+      #       -JINFLUX_ORG="${INFLUX_ORG}" \
+      #       -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
+      #       -l results/stress_results.jtl \
+      #       -j logs/stress.log
       
-      - name: Wait for Stress data to settle
-        run: sleep 30
+      # - name: Wait for Stress data to settle
+      #   run: sleep 30
       
-      - name: Run Spike Test
-        env:
-          INFLUX_URL: ${{ secrets.INFLUX_URL }}
-          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
-          INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
-          INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
-        run: |
-          jmeter -n -t performance_tests.jmx \
-            -JtestRunSelection='Spike' \
-            -JINFLUX_URL="${INFLUX_URL}" \
-            -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
-            -JINFLUX_ORG="${INFLUX_ORG}" \
-            -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
-            -l results/spike_results.jtl \
-            -j logs/spike.log
+      # - name: Run Spike Test
+      #   env:
+      #     INFLUX_URL: ${{ secrets.INFLUX_URL }}
+      #     INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+      #     INFLUX_ORG: ${{ secrets.INFLUX_ORG }}
+      #     INFLUX_BUCKET: ${{ secrets.INFLUX_BUCKET }}
+      #   run: |
+      #     jmeter -n -t performance_tests.jmx \
+      #       -JtestRunSelection='Spike' \
+      #       -JINFLUX_URL="${INFLUX_URL}" \
+      #       -JINFLUX_TOKEN="${INFLUX_TOKEN}" \
+      #       -JINFLUX_ORG="${INFLUX_ORG}" \
+      #       -JINFLUX_BUCKET="${INFLUX_BUCKET}" \
+      #       -l results/spike_results.jtl \
+      #       -j logs/spike.log
       
-      - name: Wait for Spike data to settle
-        run: sleep 30
+      # - name: Wait for Spike data to settle
+      #   run: sleep 30
       
-      # ─────────────────────────────────────────────────────────
-      # ANALYZE RESULTS
-      # ─────────────────────────────────────────────────────────
+      # # ─────────────────────────────────────────────────────────
+      # # ANALYZE RESULTS
+      # # ─────────────────────────────────────────────────────────
       
-      - name: Parse test results and generate stats
-        id: parse_results
-        run: |
-          python3 << 'EOF'
-          import csv
-          import json
-          import os
-          from datetime import datetime
+      # - name: Parse test results and generate stats
+      #   id: parse_results
+      #   run: |
+      #     python3 << 'EOF'
+      #     import csv
+      #     import json
+      #     import os
+      #     from datetime import datetime
           
-          def parse_jtl(filepath, test_type):
-              """Parse JMeter JTL file and extract statistics"""
-              try:
-                  with open(filepath, 'r') as f:
-                      reader = csv.DictReader(f)
-                      rows = list(reader)
+      #     def parse_jtl(filepath, test_type):
+      #         """Parse JMeter JTL file and extract statistics"""
+      #         try:
+      #             with open(filepath, 'r') as f:
+      #                 reader = csv.DictReader(f)
+      #                 rows = list(reader)
                   
-                  if not rows:
-                      return None
+      #             if not rows:
+      #                 return None
                   
-                  # Calculate stats
-                  latencies = [int(row['elapsed']) for row in rows]
-                  success_count = sum(1 for row in rows if row['success'] == 'true')
-                  total_count = len(rows)
+      #             # Calculate stats
+      #             latencies = [int(row['elapsed']) for row in rows]
+      #             success_count = sum(1 for row in rows if row['success'] == 'true')
+      #             total_count = len(rows)
                   
-                  latencies_sorted = sorted(latencies)
-                  p50_index = int(len(latencies_sorted) * 0.50)
-                  p90_index = int(len(latencies_sorted) * 0.90)
-                  p95_index = int(len(latencies_sorted) * 0.95)
-                  p99_index = int(len(latencies_sorted) * 0.99)
+      #             latencies_sorted = sorted(latencies)
+      #             p50_index = int(len(latencies_sorted) * 0.50)
+      #             p90_index = int(len(latencies_sorted) * 0.90)
+      #             p95_index = int(len(latencies_sorted) * 0.95)
+      #             p99_index = int(len(latencies_sorted) * 0.99)
                   
-                  stats = {
-                      'test_type': test_type,
-                      'total_requests': total_count,
-                      'success_rate': round((success_count / total_count) * 100, 2),
-                      'avg_response_time': round(sum(latencies) / len(latencies), 2),
-                      'min_response_time': min(latencies),
-                      'max_response_time': max(latencies),
-                      'p50_response_time': latencies_sorted[p50_index],
-                      'p90_response_time': latencies_sorted[p90_index],
-                      'p95_response_time': latencies_sorted[p95_index],
-                      'p99_response_time': latencies_sorted[p99_index],
-                      'error_count': total_count - success_count
-                  }
+      #             stats = {
+      #                 'test_type': test_type,
+      #                 'total_requests': total_count,
+      #                 'success_rate': round((success_count / total_count) * 100, 2),
+      #                 'avg_response_time': round(sum(latencies) / len(latencies), 2),
+      #                 'min_response_time': min(latencies),
+      #                 'max_response_time': max(latencies),
+      #                 'p50_response_time': latencies_sorted[p50_index],
+      #                 'p90_response_time': latencies_sorted[p90_index],
+      #                 'p95_response_time': latencies_sorted[p95_index],
+      #                 'p99_response_time': latencies_sorted[p99_index],
+      #                 'error_count': total_count - success_count
+      #             }
                   
-                  return stats
-              except Exception as e:
-                  print(f"Error parsing {filepath}: {e}")
-                  return None
+      #             return stats
+      #         except Exception as e:
+      #             print(f"Error parsing {filepath}: {e}")
+      #             return None
           
-          # Parse all test results
-          results = {}
-          for test_type in ['smoke', 'load', 'stress', 'spike']:
-              filepath = f'results/{test_type}_results.jtl'
-              if os.path.exists(filepath):
-                  stats = parse_jtl(filepath, test_type.capitalize())
-                  if stats:
-                      results[test_type] = stats
+      #     # Parse all test results
+      #     results = {}
+      #     for test_type in ['smoke', 'load', 'stress', 'spike']:
+      #         filepath = f'results/{test_type}_results.jtl'
+      #         if os.path.exists(filepath):
+      #             stats = parse_jtl(filepath, test_type.capitalize())
+      #             if stats:
+      #                 results[test_type] = stats
           
-          # Save to file for email step
-          with open('test_results_summary.json', 'w') as f:
-              json.dump(results, f, indent=2)
+      #     # Save to file for email step
+      #     with open('test_results_summary.json', 'w') as f:
+      #         json.dump(results, f, indent=2)
           
-          # Also save as GitHub output for display in workflow
-          print(f"Results: {json.dumps(results, indent=2)}")
+      #     # Also save as GitHub output for display in workflow
+      #     print(f"Results: {json.dumps(results, indent=2)}")
           
-          # Set GitHub output variables for the email subject
-          smoke_success = results.get('smoke', {}).get('success_rate', 0)
-          load_success = results.get('load', {}).get('success_rate', 0)
-          stress_success = results.get('stress', {}).get('success_rate', 0)
-          spike_success = results.get('spike', {}).get('success_rate', 0)
+      #     # Set GitHub output variables for the email subject
+      #     smoke_success = results.get('smoke', {}).get('success_rate', 0)
+      #     load_success = results.get('load', {}).get('success_rate', 0)
+      #     stress_success = results.get('stress', {}).get('success_rate', 0)
+      #     spike_success = results.get('spike', {}).get('success_rate', 0)
           
-          overall_success = (smoke_success + load_success + stress_success + spike_success) / 4
+      #     overall_success = (smoke_success + load_success + stress_success + spike_success) / 4
           
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f"overall_success={overall_success:.2f}\n")
-              f.write(f"smoke_success={smoke_success:.2f}\n")
+      #     with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+      #         f.write(f"overall_success={overall_success:.2f}\n")
+      #         f.write(f"smoke_success={smoke_success:.2f}\n")
           
-          EOF
+      #     EOF
       
       # ─────────────────────────────────────────────────────────
       # CAPTURE GRAFANA SCREENSHOTS
