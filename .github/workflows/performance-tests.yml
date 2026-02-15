@@ -54,8 +54,8 @@ jobs:
             -l results/smoke_results.jtl \
             -j logs/smoke.log
       
-      - name: Wait for Smoke data to settle
-        run: sleep 30
+      - name: Wait for Smoke data to update
+        run: sleep 10
       
       - name: Run Load Test
         env:
@@ -73,8 +73,8 @@ jobs:
             -l results/load_results.jtl \
             -j logs/load.log
       
-      - name: Wait for Load data to settle
-        run: sleep 30
+      - name: Wait for Load data to update
+        run: sleep 10
       
       - name: Run Stress Test
         env:
@@ -92,8 +92,8 @@ jobs:
             -l results/stress_results.jtl \
             -j logs/stress.log
       
-      - name: Wait for Stress data to settle
-        run: sleep 30
+      - name: Wait for Stress data to update
+        run: sleep 10
       
       - name: Run Spike Test
         env:
@@ -111,8 +111,8 @@ jobs:
             -l results/spike_results.jtl \
             -j logs/spike.log
       
-      - name: Wait for Spike data to settle
-        run: sleep 30
+      - name: Wait for Spike data to update
+        run: sleep 10
       
       - name: Parse test results and generate stats
         id: parse_results
@@ -204,7 +204,7 @@ jobs:
               params = {
                   'orgId': '1',
                   'var-testType': test_type,
-                  'from': 'now-30m',
+                  'from': 'now-10m',
                   'to': 'now',
                   'width': 1000,
                   'height': 1300,
