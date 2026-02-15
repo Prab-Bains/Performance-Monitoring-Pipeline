@@ -221,7 +221,7 @@ jobs:
               params = {
                   'orgId': '1',
                   'var-testType': test_type,
-                  'from': 'now-1h',
+                  'from': 'now-23h',
                   'to': 'now',
                   'width': 1000,
                   'height': 1300,
