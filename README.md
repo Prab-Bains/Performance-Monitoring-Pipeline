@@ -109,3 +109,22 @@ jmeter -n -t performance_tests.jmx \
 -l results/test_results.jtl \
 -j logs/jmeter.log
 ```
+
+## Project Gallery
+
+### Real-Time Observability (Grafana)
+The dashboard provides a high-level view of system health. Here is an example of the dashboard below.
+<br>
+<img src="images/grafana_dashboard.png" alt="Grafana Performance Dashboard">
+
+
+### Time-Series Telemetry (InfluxDB)
+Raw metrics are streamed directly into InfluxDB. Here is an example of the data below.
+<br>
+<img src="images/influx_db.png" width="800" alt="InfluxDB Data Explorer">
+
+
+### Automated Email Reporting
+At the end of each run, a summary is emailed to the user. Here is an example of the automated email.
+<br>
+<img src="images/email_report.png" width="600" alt="Automated Email Report">
