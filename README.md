@@ -45,13 +45,13 @@ The GitHub Actions workflow orchestrates the full performance testing lifecycle:
 
 ```mermaid
 flowchart TD
-    A[Environment Setup] --> B[Execute Test Profiles]
-    B --> C[Parse JTL Results]
+    A[Environment Setup] --> B[Execute Tests]
+    B --> C[Parse JTL Results And Retrive Test Statistics]
     C --> D[Capture Grafana Dashboards]
-    D --> E[Generate Report]
-    E --> F[Archive Artifacts]
-    F --> G[Email Notification]
-    F --> H[Upload to GitHub]
+    D --> E[Generate Email Text]
+    E --> F[Zip Test Artifacts]
+    F --> G[Send Email With Artifacts Attached]
+    G --> H[Upload Artifacts GitHub]
 ```
 
 ## Artifacts
