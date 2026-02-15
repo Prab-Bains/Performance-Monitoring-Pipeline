@@ -245,260 +245,83 @@ jobs:
           
           EOF
       
-      - name: Generate HTML Email
+      - name: Generate Plain Text Email
         run: |
           python3 << 'EOF'
           import json
           from datetime import datetime
           
           # Load test results
-          with open('test_results_summary.json', 'r') as f:
-              results = json.load(f)
-          
-          # Generate HTML email
-          html = f"""
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <style>
-                  body {{
-                      font-family: Arial, sans-serif;
-                      line-height: 1.6;
-                      color: #333;
-                      max-width: 1200px;
-                      margin: 0 auto;
-                      padding: 20px;
-                  }}
-                  .header {{
-                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                      color: white;
-                      padding: 30px;
-                      border-radius: 10px;
-                      margin-bottom: 30px;
-                  }}
-                  .header h1 {{
-                      margin: 0;
-                      font-size: 28px;
-                  }}
-                  .header p {{
-                      margin: 10px 0 0 0;
-                      opacity: 0.9;
-                  }}
-                  .summary {{
-                      display: grid;
-                      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                      gap: 20px;
-                      margin-bottom: 30px;
-                  }}
-                  .summary-card {{
-                      background: #f8f9fa;
-                      padding: 20px;
-                      border-radius: 8px;
-                      border-left: 4px solid #667eea;
-                  }}
-                  .summary-card h3 {{
-                      margin: 0 0 10px 0;
-                      font-size: 14px;
-                      color: #666;
-                      text-transform: uppercase;
-                  }}
-                  .summary-card .value {{
-                      font-size: 32px;
-                      font-weight: bold;
-                      color: #333;
-                  }}
-                  .summary-card .subtitle {{
-                      font-size: 12px;
-                      color: #999;
-                      margin-top: 5px;
-                  }}
-                  .test-section {{
-                      background: white;
-                      border: 1px solid #e1e4e8;
-                      border-radius: 8px;
-                      padding: 25px;
-                      margin-bottom: 30px;
-                  }}
-                  .test-section h2 {{
-                      margin: 0 0 20px 0;
-                      color: #333;
-                      border-bottom: 2px solid #667eea;
-                      padding-bottom: 10px;
-                  }}
-                  .stats-grid {{
-                      display: grid;
-                      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                      gap: 15px;
-                      margin-bottom: 20px;
-                  }}
-                  .stat-item {{
-                      background: #f8f9fa;
-                      padding: 15px;
-                      border-radius: 6px;
-                  }}
-                  .stat-label {{
-                      font-size: 12px;
-                      color: #666;
-                      margin-bottom: 5px;
-                  }}
-                  .stat-value {{
-                      font-size: 20px;
-                      font-weight: bold;
-                      color: #333;
-                  }}
-                  .success {{ color: #28a745; }}
-                  .warning {{ color: #ffc107; }}
-                  .danger {{ color: #dc3545; }}
-                  .screenshot {{
-                      width: 100%;
-                      border-radius: 8px;
-                      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                      margin-top: 15px;
-                  }}
-                  .footer {{
-                      text-align: center;
-                      color: #666;
-                      font-size: 12px;
-                      margin-top: 40px;
-                      padding-top: 20px;
-                      border-top: 1px solid #e1e4e8;
-                  }}
-              </style>
-          </head>
-          <body>
-              <div class="header">
-                  <h1>🚀 Weekly Performance Test Report</h1>
-                  <p>Automated test run completed on {datetime.now().strftime('%B %d, %Y at %H:%M UTC')}</p>
-              </div>
-          """
-          
-          # Overall summary
+          try:
+              with open('test_results_summary.json', 'r') as f:
+                  results = json.load(f)
+          except FileNotFoundError:
+              print("Summary file not found")
+              exit(1)
+              
+          # Overall stats calculation
           overall_success = sum(r.get('success_rate', 0) for r in results.values()) / len(results) if results else 0
           total_requests = sum(r.get('total_requests', 0) for r in results.values())
           total_errors = sum(r.get('error_count', 0) for r in results.values())
           
-          html += f"""
-              <div class="summary">
-                  <div class="summary-card">
-                      <h3>Overall Success Rate</h3>
-                      <div class="value {'success' if overall_success >= 95 else 'warning' if overall_success >= 90 else 'danger'}">{overall_success:.1f}%</div>
-                  </div>
-                  <div class="summary-card">
-                      <h3>Total Requests</h3>
-                      <div class="value">{total_requests:,}</div>
-                  </div>
-                  <div class="summary-card">
-                      <h3>Total Errors</h3>
-                      <div class="value {'danger' if total_errors > 0 else 'success'}">{total_errors}</div>
-                  </div>
-              </div>
-          """
+          # Generate Text Body
+          text = "Weekly Performance Test Report\n"
+          text += f"Automated test run completed on {datetime.now().strftime('%B %d, %Y at %H:%M UTC')}\n\n"
           
-          # Individual test sections
-          test_emojis = {'smoke': '🔍', 'load': '📊', 'stress': '💪', 'spike': '⚡'}
+          text += f"Overall Success Rate: {overall_success:.1f}%\n"
+          text += f"Total Requests: {total_requests:,}\n"
+          text += f"Total Errors: {total_errors}\n\n"
           
+          # Individual sections
           for test_key, stats in results.items():
-              test_name = stats['test_type']
-              emoji = test_emojis.get(test_key, '📈')
-              success_class = 'success' if stats['success_rate'] >= 95 else 'warning' if stats['success_rate'] >= 90 else 'danger'
-              
-              html += f"""
-              <div class="test-section">
-                  <h2>{emoji} {test_name} Test Results</h2>
-                  
-                  <div class="stats-grid">
-                      <div class="stat-item">
-                          <div class="stat-label">Success Rate</div>
-                          <div class="stat-value {success_class}">{stats['success_rate']}%</div>
-                      </div>
-                      <div class="stat-item">
-                          <div class="stat-label">Total Requests</div>
-                          <div class="stat-value">{stats['total_requests']:,}</div>
-                      </div>
-                      <div class="stat-item">
-                          <div class="stat-label">Errors</div>
-                          <div class="stat-value {'danger' if stats['error_count'] > 0 else 'success'}">{stats['error_count']}</div>
-                      </div>
-                      <div class="stat-item">
-                          <div class="stat-label">Avg Response</div>
-                          <div class="stat-value">{stats['avg_response_time']:.0f}ms</div>
-                      </div>
-                      <div class="stat-item">
-                          <div class="stat-label">p50</div>
-                          <div class="stat-value">{stats['p50_response_time']}ms</div>
-                      </div>
-                      <div class="stat-item">
-                          <div class="stat-label">p90</div>
-                          <div class="stat-value">{stats['p90_response_time']}ms</div>
-                      </div>
-                      <div class="stat-item">
-                          <div class="stat-label">p95</div>
-                          <div class="stat-value">{stats['p95_response_time']}ms</div>
-                      </div>
-                      <div class="stat-item">
-                          <div class="stat-label">p99</div>
-                          <div class="stat-value">{stats['p99_response_time']}ms</div>
-                      </div>
-                      <div class="stat-item">
-                          <div class="stat-label">Min</div>
-                          <div class="stat-value">{stats['min_response_time']}ms</div>
-                      </div>
-                      <div class="stat-item">
-                          <div class="stat-label">Max</div>
-                          <div class="stat-value">{stats['max_response_time']}ms</div>
-                      </div>
-                  </div>
-                  
-                  <h3 style="margin-top: 25px; margin-bottom: 10px;">📊 Grafana Dashboard</h3>
-                  <img src="cid:{test_key}_dashboard" alt="{test_name} Dashboard" class="screenshot">
-              </div>
-              """
+              text += f"{stats['test_type'].upper()} TEST RESULTS:\n\n"
+              text += f"Success Rate: {stats['success_rate']}%\n"
+              text += f"Total Requests: {stats['total_requests']:,}\n"
+              text += f"Errors: {stats['error_count']}\n"
+              text += f"Avg Response: {stats['avg_response_time']:.0f}ms\n"
+              text += f"p50: {stats['p50_response_time']}ms\n"
+              text += f"p90: {stats['p90_response_time']}ms\n"
+              text += f"p95: {stats['p95_response_time']}ms\n"
+              text += f"p99: {stats['p99_response_time']}ms\n"
+              text += f"Min: {stats['min_response_time']}ms\n"
+              text += f"Max: {stats['max_response_time']}ms\n\n"
+
+          text += "--------------------------------------\n"
+          text += "This is an automated report. Detailed logs and screenshots are attached as a zip file."
           
-          html += """
-              <div class="footer">
-                  <p>This is an automated report generated by GitHub Actions</p>
-                  <p>View detailed metrics in your Grafana dashboard</p>
-              </div>
-          </body>
-          </html>
-          """
+          # Save Text email
+          with open('email_body.txt', 'w') as f:
+              f.write(text)
           
-          # Save HTML email
-          with open('email_body.html', 'w') as f:
-              f.write(html)
-          
-          print("Email HTML generated successfully")
+          print("Plain text email generated successfully")
           EOF
-      
-      - name: Send Email
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "Performance Test Report - ${{ steps.parse_results.outputs.overall_success }}% Success Rate"
-          to: ${{ secrets.EMAIL_TO }}
-          from: Performance Testing Bot <${{ secrets.EMAIL_USERNAME }}>
-          html_body: file://email_body.html
-          attachments: |
-            screenshots/smoke_dashboard.png
-            screenshots/load_dashboard.png
-            screenshots/stress_dashboard.png
-            screenshots/spike_dashboard.png
-          content_type: text/html
-          convert_markdown: false
-          priority: normal
-      
-      - name: Upload test results and screenshots
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: performance-test-results
-          path: |
-            results/
-            logs/
-            screenshots/
-            test_results_summary.json
-            email_body.html
-          retention-days: 7
+
+    - name: Zip Test Artifacts
+      run: |
+        zip -r performance_results.zip results/ logs/ screenshots/ test_results_summary.json email_body.txt
+
+    - name: Send Email
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 587
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "Performance Test Report - ${{ steps.parse_results.outputs.overall_success }}% Success"
+        to: ${{ secrets.EMAIL_TO }}
+        from: Performance Testing Bot <${{ secrets.EMAIL_USERNAME }}>
+        body: file://email_body.txt
+        attachments: performance_results.zip
+        content_type: text/plain
+        convert_markdown: false
+        priority: normal
+
+    - name: Upload test results and zip
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-test-results
+        path: |
+          performance_results.zip
+          email_body.txt
+        retention-days: 7
