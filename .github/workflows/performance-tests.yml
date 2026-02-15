@@ -210,6 +210,10 @@ jobs:
           GRAFANA_TOKEN: ${{ secrets.GRAFANA_API_KEY }}
           GRAFANA_RENDER_URL: ${{ secrets.GRAFANA_RENDER_URL }}
         run: |
+          echo "====== DEBUG ======"
+          echo "Full URL: $GRAFANA_RENDER_URL"
+          echo ""
+          echo "Token first 10 chars: ${GRAFANA_TOKEN:0:5}..."
           python3 << 'EOF'
           import os
           import requests
@@ -233,9 +237,15 @@ jobs:
                   'Authorization': f'Bearer {token}',
                   'Accept': 'image/png'
               }
+
+              from urllib.parse import urlencode
+              full_url = f"{url}?{urlencode(params)}"
               
               print(f"Capturing {test_type} dashboard screenshot...")
-              print(f"URL: {url}")
+              print(f"Base URL: {url}")
+              print(f"Full URL with params: {full_url}")
+              print(f"Token length: {len(token)} chars")
+              print(f"Token starts with: {token[:10]}...")
               
               response = requests.get(url, params=params, headers=headers, timeout=120)
               
